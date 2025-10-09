@@ -1,8 +1,20 @@
 from neo4j import GraphDatabase
 from pymongo import MongoClient
+import os
+from dotenv import load_dotenv
 
-driver= GraphDatabase.driver("bolt://localhost:7687", auth= ("neo4j", "password"))
-mongo= MongoClient("mogodb://localhost:27017")["docs"]["metadata"]
+#neo4j
+uri= os.getenv("NEO4J_URI")
+user= os.getenv("NEO4J_USER")
+password= os.getenv("NEO4J_PASSWORD")
+
+#mongodb
+url= os.getenv("MONGODB_URI")
+db= os.getenv("MONGODB_DB")
+collection= os.getenv("MONGODB_COLLECTION")
+
+driver= GraphDatabase.driver(uri, auth= (user, password))
+mongo= MongoClient(url)[db][collection]
 
 def store_project_graph(project_name, pdf_data, chunks):
     with driver.session() as session:
