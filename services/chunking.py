@@ -3,18 +3,22 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 def chunk_pdf(pdf_path):
     docs= fitz.open(pdf_path)
-    text= ''
-    for page in docs:
-        text= text+page.get_text()
-    
+    chunks= []
     splitter= RecursiveCharacterTextSplitter(
         chunk_size= 1000,
-        chunk_overlap= 200
+        chunk_overlap= 500
     )
-
-    chunks= splitter.split_text(text)
-    print(chunks)
-    return [
-        {'chunk_id':i, 'text': chunk}
-        for i, chunks in enumerate(chunks)
-    ]
+    for page_number, page in enumerate(docs, start=1):
+        text= page.get_text("text").strip()
+        if not text:
+            continue
+    
+        page_chunks= splitter.split_text(text)
+        for i, chunk_text in enumerate(page_chunks):
+            chunks.append({
+                "chunk_id": f"{page_number}_{i}",
+                    "page": page_number,
+                    "text": chunk_text
+            })
+    print(len(chunks))
+    return chunks
