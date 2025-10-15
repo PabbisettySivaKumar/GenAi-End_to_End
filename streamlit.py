@@ -2,15 +2,13 @@ import streamlit as st
 import requests
 import json
 
-# ---- Streamlit UI Config ----
 st.set_page_config(page_title="Generative AI RAG App", layout="wide")
-
 st.title("Generative AI RAG System")
 st.caption("Upload PDFs → Build Knowledge Graph → Ask Questions")
 
 BACKEND_URL = "http://127.0.0.1:8000"  # Adjust if backend runs elsewhere
 
-# ---- Upload Section ----
+
 st.header("Upload Your PDFs")
 
 project_name = st.text_input("Project Name", value="default_project")
@@ -45,7 +43,7 @@ if st.button("Upload PDFs"):
 
 st.markdown("---")
 
-# ---- Query Section ----
+
 st.header("Ask a Question")
 
 query_text = st.text_area("Enter your question here", placeholder="e.g., What are transformers in deep learning?")
@@ -60,10 +58,10 @@ if st.button("Get Answer"):
                 res = requests.post(f"{BACKEND_URL}/query", json=payload, timeout=120)
                 if res.status_code == 200:
                     answer = res.json().get("answer", "No answer returned.")
-                    st.subheader("🧩 Answer:")
+                    st.subheader("Answer:")
                     st.write(answer)
                 else:
-                    st.error(f"❌ Query failed: {res.status_code}")
+                    st.error(f"Query failed: {res.status_code}")
                     st.json(res.json())
             except Exception as e:
                 st.error(f"Error: {e}")
