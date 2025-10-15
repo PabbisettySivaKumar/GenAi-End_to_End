@@ -20,8 +20,8 @@ async def upload_pdfs(
 
     if not files or len(files)==0:
         raise HTTPException(status_code= 400, detail= "Atleast One pdf must be added.")
-    # if len(files) > 2:
-    #     raise HTTPException(status_code=400, detail="Limit: 2 PDFs only.")
+    if len(files) > 2:
+        raise HTTPException(status_code=400, detail="Limit: 2 PDFs only.")
 
     uploaded_files = []
     all_chunks = []
@@ -53,7 +53,7 @@ async def upload_pdfs(
             "uploaded_at": datetime.now(ist).isoformat(),
         }
         pdf_metadata.append(pdf_info)
-        uploaded_files.append(f.filename)
+        #uploaded_files.append(f.filename)
 
         store_metadata({
             "project": project_name,
