@@ -36,5 +36,4 @@ dist/
 .DS_Store
 
 #pycache
-__pycache__
-router/__pycache__/pdf_upload.cpython-313.pyc
+__pycache__/
