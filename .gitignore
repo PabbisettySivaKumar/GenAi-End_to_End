@@ -34,3 +34,6 @@ dist/
 
 #OS Files
 .DS_Store
+
+#pycache
+__pycache__
