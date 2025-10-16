@@ -45,7 +45,7 @@ def ensure_vector_index():
         with driver.session() as session:
             session.run(
             """
-            CREATE VECTOR INDEX vector_index IF NOT EXISTS
+            CREATE VECTOR INDEX vector IF NOT EXISTS
             FOR (c:Chunk)
             ON (c.embedding)
             OPTIONS {
