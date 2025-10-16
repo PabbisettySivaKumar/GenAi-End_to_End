@@ -27,48 +27,80 @@ async def upload_pdfs(
     all_chunks = []
     pdf_metadata = []
 
-    for f in files:
-        temp_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-        temp_pdf.write(await f.read())
-        temp_pdf.close()
+    try:
+
+        for f in files:
+            #saving temp files
+            try:
+                temp_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+                temp_pdf.write(await f.read())
+                temp_pdf.close()
+            except Exception as e:
+                raise HTTPException(status_code= 500, detail= f"Failed to write temp file: ")
+            try:
+                #read pdf
+                doc = fitz.open(temp_pdf.name)
+                pages = len(doc)
+            except Exception as e:
+                os.remove(temp_pdf.name)
+                raise HTTPException(status_code=500, detail=f"Error reading PDF: {e}")
+
+            try:
+                #chunk pdf
+                chunks = chunk_pdf(temp_pdf.name)
+                if not chunks:
+                    raise ValueError("No Text chunks in PDF.")
+            except:
+                os.remove(temp_pdf.name)
+                raise HTTPException(status_code= 500, detail= f"Error Chunking PDF: {e}")
+
+            try:
+                #generate embeddings for chunk
+                for c in chunks:
+                    try:
+                        #print(c["text"])
+                        c["embedding"]= get_embeddings(c["text"])
+                        c["pdf_name"]= f.filename
+                    except Exception as e:
+                        print(f"Embedding error: {e}")
+                        c["embedding"]= []
+                all_chunks.extend(chunks)
+            finally:
+                os.remove(temp_pdf.name)
+            #store metadata in MongoDb
+            try: 
+                pdf_info = {
+                    "name": f.filename,
+                    "pages": pages,
+                    "uploaded_at": datetime.now(ist).isoformat(),
+                }
+                pdf_metadata.append(pdf_info)
+                #uploaded_files.append(f.filename)
+
+                store_metadata({
+                    "project": project_name,
+                    "pdf_name": f.filename,
+                    "num_pages": pages,
+                    "upload_time": datetime.now(ist).isoformat()
+                })
+
+                uploaded_files.append(f.filename)
+            except Exception as e:
+                raise HTTPException(status_code= 500, detail= f"MongoDB insertion failed: {e}")
+        #store relationship in Neo4j
         try:
-            doc = fitz.open(temp_pdf.name)
-            pages = len(doc)
+            store_project_graph(project_name, pdf_metadata, all_chunks)
         except Exception as e:
-            os.remove(temp_pdf.name)
-            raise HTTPException(status_code=500, detail=f"Error reading PDF: {e}")
+            raise HTTPException(status_code= 500, detail= f"Neo4j storage failed: {e}")
 
-        chunks = chunk_pdf(temp_pdf.name)
-        for c in chunks:
-            #print(c["text"])
-            c["embedding"]= get_embeddings(c["text"])
-            c["pdf_name"]= f.filename
-        all_chunks.extend(chunks)
-        os.remove(temp_pdf.name)
-        
-
-        pdf_info = {
-            "name": f.filename,
-            "pages": pages,
-            "uploaded_at": datetime.now(ist).isoformat(),
-        }
-        pdf_metadata.append(pdf_info)
-        #uploaded_files.append(f.filename)
-
-        store_metadata({
+        return {
             "project": project_name,
-            "pdf_name": f.filename,
-            "num_pages": pages,
-            "upload_time": datetime.now(ist).isoformat()
-        })
+            "uploaded_files": uploaded_files,
+            "total_chunks": len(all_chunks),
+            "status": "Successfully processed and stored in Neo4j + MongoDB."
+        }
 
-        uploaded_files.append(f.filename)
-
-    store_project_graph(project_name, pdf_metadata, all_chunks)
-
-    return {
-        "project": project_name,
-        "uploaded_files": uploaded_files,
-        "total_chunks": len(all_chunks),
-        "status": "Successfully processed and stored in Neo4j + MongoDB."
-    }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code= 500, detail= f"Unexpected error: {e}")
