@@ -1,0 +1,12 @@
+fastapi==0.119.0
+fitz==0.0.1.dev2
+langchain==0.3.27
+langchain_community==0.3.31
+langchain_ollama==0.3.10
+langfuse==3.6.2
+neo4j==6.0.2
+pydantic==2.12.2
+pymongo==4.15.3
+python-dotenv==1.1.1
+pytz==2025.2
+Requests==2.32.5
