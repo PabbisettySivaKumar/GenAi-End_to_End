@@ -5,8 +5,8 @@ def chunk_pdf(pdf_path):
     docs= fitz.open(pdf_path)
     chunks= []
     splitter= RecursiveCharacterTextSplitter(
-        chunk_size= 1000,
-        chunk_overlap= 500
+        chunk_size= 3000,
+        chunk_overlap= 1000
     )
     for page_number, page in enumerate(docs, start=1):
         text= page.get_text("text").strip()
