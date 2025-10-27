@@ -1,17 +1,11 @@
 import streamlit as st
 import requests
 
-# -----------------------------------------------------------
-# Page Setup
-# -----------------------------------------------------------
 st.set_page_config(
     page_title="Generative AI RAG System",
     layout="centered"
 )
 
-# -----------------------------------------------------------
-# Custom CSS Styling
-# -----------------------------------------------------------
 st.markdown("""
 <style>
     /* Global Styles */
@@ -155,14 +149,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# -----------------------------------------------------------
-# Backend URL
-# -----------------------------------------------------------
 BACKEND_URL = "http://127.0.0.1:8000"
 
-# -----------------------------------------------------------
-# Title
-# -----------------------------------------------------------
 st.markdown("""
 <div style="text-align:center; margin-bottom:2rem;">
     <h1>Generative AI RAG System</h1>
@@ -170,9 +158,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# -----------------------------------------------------------
-# Upload Section
-# -----------------------------------------------------------
 st.subheader("Upload Your PDFs")
 st.caption("Build your knowledge base from documents")
 
@@ -205,9 +190,6 @@ if st.button("Upload PDFs"):
             except Exception as e:
                 st.error(f"Error: {e}")
 
-# -----------------------------------------------------------
-# Chat Section
-# -----------------------------------------------------------
 st.subheader("Chat with Your Knowledge Base")
 st.caption("Ask follow-up questions and continue the conversation")
 
@@ -220,21 +202,16 @@ for role, msg in st.session_state.chat_history:
     st.markdown(f'<div class="chat-bubble {bubble_class}">{msg}</div>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
-# -----------------------------------------------------------
-# Input and Send Section (Fixed)
-# -----------------------------------------------------------
 col1, col2 = st.columns([8, 2])
 
-# Counter for unique input key
 if "input_key_counter" not in st.session_state:
     st.session_state.input_key_counter = 0
 
-# ✅ Use dynamic key properly here
 dynamic_key = f"user_message_input_{st.session_state.input_key_counter}"
 
 user_message = col1.text_input(
     "Type your message",
-    key=dynamic_key,  # ✅ Corrected line
+    key=dynamic_key,
     placeholder="Ask something about your PDFs..."
 )
 send = col2.button("Send")
@@ -256,13 +233,9 @@ if send and user_message.strip():
                 st.session_state.chat_history.append(("bot", f"Query failed: {res.status_code}"))
         except Exception as e:
             st.session_state.chat_history.append(("bot", f"Error: {e}"))
-    # ✅ Increment counter → new input key next render → clears box
     st.session_state.input_key_counter += 1
     st.rerun()
 
-# -----------------------------------------------------------
-# Footer
-# -----------------------------------------------------------
 st.markdown("""
 <div class="footer">
     Powered by <b>FastAPI</b> • <b>LangChain</b> • <b>Ollama</b> • <b>Neo4j</b> • <b>MongoDB</b><br>
