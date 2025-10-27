@@ -16,42 +16,34 @@ st.markdown("""
         padding-top: 1rem;
     }
 
-    /* Typography */
     h1, h2, h3 {
         color: #111111;
         font-weight: 600;
         letter-spacing: -0.02em;
     }
-    p, label, .stTextInput label, .stTextArea label {
+
+    p, label {
         color: #5f5f5f !important;
         font-size: 0.93rem !important;
     }
 
     /* Input Boxes */
-    .stTextInput > div > div > input, .stTextArea textarea {
+    .stTextInput > div > div > input {
         background-color: #fafafa !important;
         border-radius: 10px !important;
         border: 1px solid #e5e5e5 !important;
         padding: 0.7rem 1rem !important;
         color: #1f1f1f !important;
+        caret-color: #111 !important; /* blinking cursor fix */
     }
-    .stTextArea textarea:focus, .stTextInput input:focus {
+
+    .stTextInput > div > div > input:focus {
         border: 1px solid #bfbfbf !important;
         outline: none !important;
-        box-shadow: none !important;
+        box-shadow: 0 0 0 1px #bfbfbf !important;
     }
 
-    /* Card Containers */
-    .card {
-        background-color: #ffffff;
-        border: 1px solid #eaeaea;
-        border-radius: 12px;
-        padding: 2rem 2.5rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.03);
-        margin-bottom: 2rem;
-    }
-
-    /* Buttons - clean neutral look */
+    /* Buttons */
     .stButton button {
         width: 100%;
         background-color: #f5f5f5 !important;
@@ -62,60 +54,27 @@ st.markdown("""
         padding: 0.7rem 1rem !important;
         transition: all 0.15s ease-in-out;
     }
+
     .stButton button:hover {
         background-color: #ebebeb !important;
         transform: translateY(-1px);
         border-color: #cfcfcf !important;
     }
 
-    /* --- File uploader styling fixes --- */
+    /* File Uploader */
     [data-testid="stFileUploader"] section {
         background-color: #f9f9f9 !important;
         border: 1px solid #e5e5e5 !important;
         border-radius: 10px !important;
     }
-    [data-testid="stFileUploader"] section div {
-        color: #111 !important;
-        opacity: 1 !important;
-    }
-    [data-testid="stFileUploaderFileName"] {
-        color: #1f1f1f !important;
-        font-weight: 500 !important;
-    }
+
     [data-testid="stFileUploaderDropzone"] {
         background-color: #fafafa !important;
         border: 1px dashed #dcdcdc !important;
         border-radius: 10px !important;
     }
-    [data-testid="stFileUploaderDropzone"] div div {
-        color: #5f5f5f !important;
-    }
 
-    /* Footer */
-    .footer {
-        text-align: center;
-        color: #7a7a7a;
-        font-size: 0.85rem;
-        margin-top: 2rem;
-        padding-top: 1rem;
-        border-top: 1px solid #efefef;
-    }
-
-    /* Title Section */
-    .title-container {
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-    .title-icon {
-        background-color: #f5f5f5;
-        color: #111;
-        font-size: 1.5rem;
-        padding: 0.8rem;
-        border-radius: 10px;
-        display: inline-block;
-        margin-bottom: 0.5rem;
-    }
-    /* Fix for "Browse files" button appearing black */
+    /* Fix: Browse files button visibility */
     [data-testid="stFileUploaderDropzone"] button {
         background-color: #f5f5f5 !important;
         color: #111 !important;
@@ -123,6 +82,7 @@ st.markdown("""
         border-radius: 6px !important;
         padding: 0.4rem 0.8rem !important;
         font-weight: 500 !important;
+        opacity: 1 !important;
         transition: all 0.2s ease-in-out;
     }
 
@@ -131,33 +91,87 @@ st.markdown("""
         border-color: #cfcfcf !important;
         transform: translateY(-1px);
     }
-    /* Hide Streamlit default black header bar */
-header[data-testid="stHeader"] {
-    display: none !important;
-}
+
+    /* Fix: Uploaded filenames visibility */
+    [data-testid="stFileUploaderFileName"] {
+        color: #111 !important;
+        font-weight: 500 !important;
+        opacity: 1 !important;
+    }
+
+    /* Hide Streamlit default header */
+    header[data-testid="stHeader"] {
+        display: none !important;
+    }
+
+    /* Chat Styling */
+    .chat-container {
+        max-height: 500px;
+        overflow-y: auto;
+        border: 1px solid #eaeaea;
+        border-radius: 12px;
+        background-color: #fafafa;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .chat-bubble {
+        display: inline-block;
+        padding: 0.8rem 1rem;
+        border-radius: 12px;
+        margin-bottom: 0.8rem;
+        max-width: 80%;
+        line-height: 1.4;
+    }
+
+    .user-bubble {
+        background-color: #e6f0ff;
+        color: #111;
+        margin-left: auto;
+        display: block;
+        text-align: right;
+    }
+
+    .bot-bubble {
+        background-color: #f5f5f5;
+        color: #111;
+        margin-right: auto;
+        display: block;
+        text-align: left;
+    }
+
+    .footer {
+        text-align: center;
+        color: #7a7a7a;
+        font-size: 0.85rem;
+        margin-top: 2rem;
+        padding-top: 1rem;
+        border-top: 1px solid #efefef;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 BACKEND_URL = "http://127.0.0.1:8000"
 
 st.markdown("""
-<div class="title-container">
+<div style="text-align:center; margin-bottom:2rem;">
     <h1>Generative AI RAG System</h1>
-    <p>Upload PDFs → Build Knowledge Graph → Ask Questions</p>
+    <p>Upload PDFs → Build Knowledge Graph → Chat with your Knowledge Base</p>
 </div>
 """, unsafe_allow_html=True)
 
-st.subheader("📂 Upload Your PDFs")
+st.subheader("Upload Your PDFs")
 st.caption("Build your knowledge base from documents")
 
 project_name = st.text_input("Project Name", value="default_project")
+
 uploaded_files = st.file_uploader(
     "PDF Files",
     type=["pdf"],
     accept_multiple_files=True
 )
 
-if st.button("📁 Upload PDFs"):
+if st.button("Upload PDFs"):
     if not uploaded_files:
         st.warning("Please select at least one PDF file.")
     else:
@@ -171,36 +185,47 @@ if st.button("📁 Upload PDFs"):
                     timeout=300
                 )
                 if response.status_code == 200:
-                    st.success("✅ Upload successful! Your knowledge graph is ready.")
+                    st.success("Upload successful! Your knowledge graph is ready.")
                 else:
                     st.error(f"Upload failed: {response.status_code}")
                     st.json(response.json())
             except Exception as e:
                 st.error(f"Error: {e}")
+st.subheader("Chat with Your Knowledge Base")
+st.caption("Ask follow-up questions and continue the conversation")
+
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+for role, msg in st.session_state.chat_history:
+    bubble_class = "user-bubble" if role == "user" else "bot-bubble"
+    st.markdown(f'<div class="chat-bubble {bubble_class}">{msg}</div>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
-st.subheader("💬 Ask a Question")
-st.caption("Query your knowledge base using AI")
+col1, col2 = st.columns([8, 2])
+user_message = col1.text_input("Type your message", key="user_message_input", placeholder="Ask something about your PDFs...")
+send = col2.button("Send")
 
-query_text = st.text_area("Your Question", placeholder="e.g., What are transformers in deep learning?")
-if st.button("💡 Get Answer"):
-    if not query_text.strip():
-        st.warning("Please enter a question.")
-    else:
-        with st.spinner("Querying your knowledge base..."):
-            try:
-                payload = {"query": query_text}
-                res = requests.post(f"{BACKEND_URL}/query", json=payload, timeout=120)
-                if res.status_code == 200:
-                    answer = res.json().get("answer", "No answer returned.")
-                    st.markdown("### 🧠 Answer:")
-                    st.success(answer)
-                else:
-                    st.error(f"Query failed: {res.status_code}")
-                    st.json(res.json())
-            except Exception as e:
-                st.error(f"Error: {e}")
-st.markdown('</div>', unsafe_allow_html=True)
+if st.button("Clear Chat"):
+    st.session_state.chat_history = []
+    st.rerun()
+
+if send and user_message.strip():
+    st.session_state.chat_history.append(("user", user_message))
+    with st.spinner("Thinking..."):
+        try:
+            payload = {"query": user_message, "project_name": project_name}
+            res = requests.post(f"{BACKEND_URL}/query", json=payload, timeout=120)
+            if res.status_code == 200:
+                answer = res.json().get("answer", "No answer returned.")
+                st.session_state.chat_history.append(("bot", answer))
+            else:
+                st.session_state.chat_history.append(("bot", f"Query failed: {res.status_code}"))
+        except Exception as e:
+            st.session_state.chat_history.append(("bot", f"Error: {e}"))
+    st.session_state["user_message_input"]= ""
+    st.rerun()
 
 st.markdown("""
 <div class="footer">
