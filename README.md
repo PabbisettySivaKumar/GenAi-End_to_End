@@ -103,17 +103,30 @@ NEO4J_URI=bolt://localhost:7687
 NEO4J_USERNAME=neo4j
 NEO4J_PASSWORD=your_password
 
-OLLAMA_MODEL=llama3
+MONGODB_URI=mongodb://localhost:27017
+MONGODB_DB=DB_NAME
+MONGODB_COLLECTION=COLLECTION_NAME
+
+OLLAMA_EMBEDDING_MODEL=nomic-embed-text:latest
+OLLAMA_LLM_MODEL=llama3.1:8b
+
 LANGFUSE_PUBLIC_KEY=your_key
 LANGFUSE_SECRET_KEY=your_secret
+LANGFUSE_HOST=http://localhost:3000
+LANGFUSE_PROMPT_NAME=prompt_template_name
 ```
 
-### 5. **Run Backend**
+### 5. **Run/Initialize LLM Model**
+```bash
+ollama serve
+```
+
+### 6. **Run Backend**
 ```bash
 uvicorn main:app --reload
 ```
 
-### 6. **Run Frontend**
+### 7. **Run Frontend**
 ```bash
 streamlit run streamlit.py
 ```
@@ -126,7 +139,7 @@ streamlit run streamlit.py
 2. Backend extracts and chunks the text.
 3. Embeddings are generated and stored in Neo4j.
 4. User queries a question.
-5. The system retrieves relevant chunks and generates a contextual answer.
+5. The system retrieves relevant chunks, generates a contextual answer, display the page, page Number and   highlite the chunks in UI.
 
 ---
 
