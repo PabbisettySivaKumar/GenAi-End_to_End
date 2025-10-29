@@ -172,7 +172,7 @@ Langfuse is integrated for tracking prompt and response metrics.
       <strong>Siva Kumar</strong><br>
       <em>Generative AI RAG System Developer</em><br><br>
       <a href="https://x.com/itsPSK95" target="_blank">
-        <img src="https://img.shields.io/badge/Twitter-@yourhandle-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white" alt="Twitter Badge">
+        <img src="https://img.shields.io/badge/Twitter-@itsPSK95-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white" alt="Twitter Badge">
       </a>
       <br><br>
       📅 <strong>Last updated:</strong> October 2025  
