@@ -9,6 +9,8 @@ import logging
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from router.pdf_upload import router as pdf_router
+from router.pdf_render import router as pdf_render_router
+
 from services.querying import RAGPipeline
 
 #logging configuration
@@ -32,6 +34,7 @@ def home():
     return {"message": "Generative AI Backend is Running"}
 
 app.include_router(pdf_router, prefix="/api")
+app.include_router(pdf_render_router)
 
 try:
     rag_pipeline = RAGPipeline()
@@ -48,9 +51,14 @@ def query_endpoint(request: QueryRequest):
         raise HTTPException(status_code=400, detail= "Query Text is required")
     try:
         logger.info(f"Received Query: {question}")
-        answer= rag_pipeline.query(question)
+        result= rag_pipeline.query(question)
+        answer= result.get("answer")
+        chunks= result.get("chunks", [])
         logger.info("Query Processed Successfully.")
-        return {"answer": answer}
+        return {
+            "answer": answer,
+            "chunks": chunks
+            }
     except Exception as e:
         logger.exception("Error while processing Query: %s", e)
         raise HTTPException(status_code= 500, detail="Internal Server Error")

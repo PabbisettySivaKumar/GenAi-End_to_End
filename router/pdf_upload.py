@@ -10,6 +10,7 @@ import fitz
 import tempfile
 import logging
 import pytz
+from pathlib import Path
 from datetime import datetime
 from typing import List, Dict
 
@@ -28,6 +29,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 IST = pytz.timezone("Asia/Kolkata")
 
+UPLOAD_DIR= Path("uploaded_pdfs")
+UPLOAD_DIR.mkdir(exist_ok=True)
 
 # PDFUploader Class
 class PDFUploader:
@@ -49,16 +52,19 @@ class PDFUploader:
         logger.info("PDFUploader initialized with timezone: %s", timezone)
 
     # Helper Methods
-    def _save_temp_pdf(self, file_data: bytes) -> str:
-        """Save uploaded PDF to a temporary file and return its path."""
+    def _save_pdf_permanent(self, file: UploadFile, project_name: str) -> str:
+        """Save uploaded PDF to a permanet filefolder and return its path."""
         try:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-                tmp.write(file_data)
-                temp_path = tmp.name
-            logger.info("Temporary PDF saved: %s", temp_path)
-            return temp_path
+            project_dir= UPLOAD_DIR/project_name
+            project_dir.mkdir(exist_ok= True)
+
+            pdf_path= project_dir/file.filename
+            with open(pdf_path, "wb") as f:
+                f.write(file.file.read())
+            logger.info(f"Saved uploaded PDF Permanently at: {pdf_path}")
+            return str(pdf_path)
         except Exception as e:
-            logger.error("Failed to save temporary PDF: %s", e)
+            logger.error("Failed to save Permanent PDF: %s", e)
             raise
 
     def _get_pdf_page_count(self, pdf_path: str) -> int:
@@ -82,8 +88,9 @@ class PDFUploader:
 
             for c in chunks:
                 try:
-                    c["embedding"] = self.embedder.embed_query(c["text"])
-                    c["pdf_name"] = pdf_name
+                    c["embedding"]= self.embedder.embed_query(c["text"])
+                    c["pdf_name"]= pdf_name
+                    c["pdf_path"]= pdf_path 
                 except Exception as e:
                     logger.warning("Embedding failed for chunk in %s: %s", pdf_name, e)
                     c["embedding"] = []
@@ -125,11 +132,11 @@ class PDFUploader:
 
         for f in files:
             logger.info("Processing PDF: %s", f.filename)
-            temp_path = self._save_temp_pdf(f.file.read())
+            perm_path = self._save_pdf_permanent(f, project_name)
 
             try:
-                pages = self._get_pdf_page_count(temp_path)
-                chunks = self._chunk_and_embed(temp_path, f.filename)
+                pages = self._get_pdf_page_count(perm_path)
+                chunks = self._chunk_and_embed(perm_path, f.filename)
 
                 uploaded_files.append(f.filename)
                 pdf_metadata.append({
@@ -141,12 +148,8 @@ class PDFUploader:
 
                 self._store_metadata(project_name, f.filename, pages)
 
-            finally:
-                try:
-                    os.remove(temp_path)
-                    logger.info("Removed temporary file %s", temp_path)
-                except Exception:
-                    logger.warning("Failed to remove temp file %s", temp_path)
+            except Exception as e:
+                logger.error(f"Failed to process PDF {f.filename}: {e}")
 
         try:
             self.storage.ensure_index()

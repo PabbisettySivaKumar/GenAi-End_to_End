@@ -6,7 +6,7 @@ DocumentChunker: PDF reading and text chunkking and logging support.
 
 import fitz
 import logging
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from typing import List, Dict
 
 
@@ -42,7 +42,7 @@ class DocumentChunker:
     def chunk_pdf(self, pdf_path: str):
         """
         Read a PDF from Disk and return a list of chunk dictionaries:
-            {"chunk_id": "page_index", "page": int, "text": str}
+            {"chunk_id": "page_index", "page": int, "text": str, "pdf_path": str}
         Arguments:
             pdf_path ---> str: Path to input for PDF File
         Returns:
@@ -67,8 +67,9 @@ class DocumentChunker:
                 for i, chunk_text in enumerate(page_chunks):
                     chunks.append({
                         "chunk_id": f"{page_number}_{i}",
-                            "page": page_number,
-                            "text": chunk_text
+                            "page_num": page_number, #did changes
+                            "text": chunk_text,
+                            "pdf_path": pdf_path #added this line
                     })
                 
                 logger.info(
