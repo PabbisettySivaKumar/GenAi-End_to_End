@@ -1,106 +1,191 @@
-from fastapi import APIRouter, File, HTTPException, UploadFile, Form
-from services.chunking import chunk_pdf
-from utils.embeddings import get_embeddings
-from services.storage import store_project_graph, store_metadata
-import tempfile
-import fitz
-from datetime import datetime
-import pytz
+"""
+router/pdf_upload.py
+
+Handles PDF upload, chunking, embedding, and storage in Neo4j + MongoDB.
+Implements an OOP-based class (PDFUploader) with FastAPI route defined here itself.
+"""
+
 import os
-from typing import List
+import fitz
+import tempfile
+import logging
+import pytz
+from datetime import datetime
+from typing import List, Dict
 
-router= APIRouter()
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 
-ist= pytz.timezone('Asia/Kolkata')
+from services.chunking import DocumentChunker
+from utils.embeddings import OllamaEmbedder
+from services.storage import Neo4jStorage, MongoMetadata
 
-@router.post('/upload')
-async def upload_pdfs(
-    files: List[UploadFile] = File(..., description= "Upload upto 2 Files"),
-    project_name: str = Form("default_project")):
 
-    if not files or len(files)==0:
-        raise HTTPException(status_code= 400, detail= "Atleast One pdf must be added.")
-    if len(files) > 5:
-        raise HTTPException(status_code=400, detail="Limit: 2 PDFs only.")
+# Logging Configuration
+logger = logging.getLogger(__name__)
 
-    uploaded_files = []
-    all_chunks = []
-    pdf_metadata = []
 
-    try:
+# FastAPI Router
+router = APIRouter()
+IST = pytz.timezone("Asia/Kolkata")
+
+
+# PDFUploader Class
+class PDFUploader:
+    """
+    A class that encapsulates the end-to-end PDF upload and processing flow:
+    1. Save uploaded PDFs temporarily.
+    2. Extract text chunks using DocumentChunker.
+    3. Generate embeddings using OllamaEmbedder.
+    4. Store metadata + graph structure in Neo4j & MongoDB.
+    """
+
+    def __init__(self, timezone: str = "Asia/Kolkata"):
+        """Initialize core services and timezone."""
+        self.chunker = DocumentChunker()
+        self.embedder = OllamaEmbedder()
+        self.storage = Neo4jStorage()
+        self.mongo= MongoMetadata()
+        self.ist = pytz.timezone(timezone)
+        logger.info("PDFUploader initialized with timezone: %s", timezone)
+
+    # Helper Methods
+    def _save_temp_pdf(self, file_data: bytes) -> str:
+        """Save uploaded PDF to a temporary file and return its path."""
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                tmp.write(file_data)
+                temp_path = tmp.name
+            logger.info("Temporary PDF saved: %s", temp_path)
+            return temp_path
+        except Exception as e:
+            logger.error("Failed to save temporary PDF: %s", e)
+            raise
+
+    def _get_pdf_page_count(self, pdf_path: str) -> int:
+        """Return the number of pages in the given PDF."""
+        try:
+            doc = fitz.open(pdf_path)
+            pages = len(doc)
+            logger.info("PDF '%s' has %d pages", pdf_path, pages)
+            return pages
+        except Exception as e:
+            logger.error("Error reading PDF '%s': %s", pdf_path, e)
+            raise
+
+    def _chunk_and_embed(self, pdf_path: str, pdf_name: str) -> List[Dict]:
+        """Chunk PDF text and generate embeddings for each chunk."""
+        try:
+            chunks = self.chunker.chunk_pdf(pdf_path)
+            if not chunks:
+                raise ValueError("No text chunks extracted from PDF.")
+            logger.info("Extracted %d chunks from %s", len(chunks), pdf_name)
+
+            for c in chunks:
+                try:
+                    c["embedding"] = self.embedder.embed_query(c["text"])
+                    c["pdf_name"] = pdf_name
+                except Exception as e:
+                    logger.warning("Embedding failed for chunk in %s: %s", pdf_name, e)
+                    c["embedding"] = []
+            return chunks
+        except Exception as e:
+            logger.error("Chunking/embedding failed for %s: %s", pdf_name, e)
+            raise
+
+    def _store_metadata(self, project_name: str, pdf_name: str, pages: int):
+        """Store PDF metadata into MongoDB via storage helper."""
+        try:
+            metadata = {
+                "project": project_name,
+                "pdf_name": pdf_name,
+                "num_pages": pages,
+                "upload_time": datetime.now(self.ist).isoformat(),
+            }
+            self.mongo.store_metadata(metadata)
+            logger.info("Stored metadata for %s", pdf_name)
+        except Exception as e:
+            logger.error("MongoDB metadata insertion failed: %s", e)
+            raise
+
+    # Main Processing Logic
+    def process_pdfs(self, files: List[UploadFile], project_name: str = "default_project") -> dict:
+        """
+        Orchestrate the full PDF upload + processing flow.
+
+        Args:
+            files (List[UploadFile]): Uploaded PDF files.
+            project_name (str): Name of the project.
+
+        Returns:
+            dict: Summary of processing result.
+        """
+        uploaded_files = []
+        all_chunks = []
+        pdf_metadata = []
 
         for f in files:
-            #saving temp files
-            try:
-                temp_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-                temp_pdf.write(await f.read())
-                temp_pdf.close()
-            except Exception as e:
-                raise HTTPException(status_code= 500, detail= f"Failed to write temp file: ")
-            try:
-                #read pdf
-                doc = fitz.open(temp_pdf.name)
-                pages = len(doc)
-            except Exception as e:
-                os.remove(temp_pdf.name)
-                raise HTTPException(status_code=500, detail=f"Error reading PDF: {e}")
+            logger.info("Processing PDF: %s", f.filename)
+            temp_path = self._save_temp_pdf(f.file.read())
 
             try:
-                #chunk pdf
-                chunks = chunk_pdf(temp_pdf.name)
-                if not chunks:
-                    raise ValueError("No Text chunks in PDF.")
-            except:
-                os.remove(temp_pdf.name)
-                raise HTTPException(status_code= 500, detail= f"Error Chunking PDF: {e}")
-
-            try:
-                #generate embeddings for chunk
-                for c in chunks:
-                    try:
-                        #print(c["text"])
-                        c["embedding"]= get_embeddings(c["text"])
-                        c["pdf_name"]= f.filename
-                    except Exception as e:
-                        print(f"Embedding error: {e}")
-                        c["embedding"]= []
-                all_chunks.extend(chunks)
-            finally:
-                os.remove(temp_pdf.name)
-            #store metadata in MongoDb
-            try: 
-                pdf_info = {
-                    "name": f.filename,
-                    "pages": pages,
-                    "uploaded_at": datetime.now(ist).isoformat(),
-                }
-                pdf_metadata.append(pdf_info)
-                #uploaded_files.append(f.filename)
-
-                store_metadata({
-                    "project": project_name,
-                    "pdf_name": f.filename,
-                    "num_pages": pages,
-                    "upload_time": datetime.now(ist).isoformat()
-                })
+                pages = self._get_pdf_page_count(temp_path)
+                chunks = self._chunk_and_embed(temp_path, f.filename)
 
                 uploaded_files.append(f.filename)
-            except Exception as e:
-                raise HTTPException(status_code= 500, detail= f"MongoDB insertion failed: {e}")
-        #store relationship in Neo4j
+                pdf_metadata.append({
+                    "pdf_name": f.filename,
+                    "pages": pages,
+                    "uploaded_at": datetime.now(self.ist).isoformat(),
+                })
+                all_chunks.extend(chunks)
+
+                self._store_metadata(project_name, f.filename, pages)
+
+            finally:
+                try:
+                    os.remove(temp_path)
+                    logger.info("Removed temporary file %s", temp_path)
+                except Exception:
+                    logger.warning("Failed to remove temp file %s", temp_path)
+
         try:
-            store_project_graph(project_name, pdf_metadata, all_chunks)
+            self.storage.ensure_index()
+            self.storage.store_project(project_name, pdf_metadata, all_chunks)
+            logger.info("Stored project '%s' successfully in Neo4j.", project_name)
         except Exception as e:
-            raise HTTPException(status_code= 500, detail= f"Neo4j storage failed: {e}")
+            logger.error("Neo4j storage failed for project '%s': %s", project_name, e)
+            raise
 
         return {
             "project": project_name,
             "uploaded_files": uploaded_files,
             "total_chunks": len(all_chunks),
-            "status": "Successfully processed and stored in Neo4j + MongoDB."
+            "status": "Successfully processed and stored in Neo4j + MongoDB.",
         }
 
-    except HTTPException:
+# FastAPI Endpoint
+pdf_uploader = PDFUploader()
+
+@router.post("/upload", tags= ["PDF Uploader"])
+async def upload_pdfs(
+    files: List[UploadFile] = File(..., description="Upload up to 5 PDF files"),
+    project_name: str = Form("default_project")
+):
+    """
+    FastAPI endpoint to handle PDF uploads and trigger processing.
+    """
+    try:
+        if not files:
+            raise HTTPException(status_code=400, detail="At least one PDF must be added.")
+        if len(files) > 5:
+            raise HTTPException(status_code=400, detail="Limit: 5 PDFs only.")
+
+        result = pdf_uploader.process_pdfs(files, project_name)
+        return result
+
+    except HTTPException as e:
+        logger.error("HTTP error during upload: %s", e.detail)
         raise
     except Exception as e:
-        raise HTTPException(status_code= 500, detail= f"Unexpected error: {e}")
+        logger.exception("Unexpected error during PDF upload: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
