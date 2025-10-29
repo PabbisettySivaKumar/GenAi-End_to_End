@@ -243,7 +243,7 @@ if send and user_message.strip():
 
 if st.session_state.last_chunks:
     st.markdown("<br><hr><br>", unsafe_allow_html=True)
-    st.subheader("🔍 Retrieved Contexts with Highlights")
+    st.subheader("Retrieved Contexts with Highlights")
 
     for idx, chunk in enumerate(st.session_state.last_chunks):
         st.markdown(f"**Chunk {idx + 1} — Page {chunk.get('page_num')}**")

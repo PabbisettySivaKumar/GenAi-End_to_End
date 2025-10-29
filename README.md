@@ -1,6 +1,13 @@
-# Generative AI RAG System
+# 🚀 Generative AI RAG System
 
 This repository implements an **end-to-end Retrieval-Augmented Generation (RAG)** system that integrates **Ollama LLM**, **Neo4j Vector Database**, and **Langfuse** for prompt management and observability. It includes a **Streamlit-based UI**, modular backend services, and PDF ingestion capabilities.
+
+![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)
+![Streamlit](https://img.shields.io/badge/Frontend-Streamlit-FF4B4B)
+![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688)
+![Ollama](https://img.shields.io/badge/LLM-Ollama-1F1F1F)
+![Neo4j](https://img.shields.io/badge/VectorDB-Neo4j-008CC1)
+![Langfuse](https://img.shields.io/badge/Prompt-Langfuse-6E56CF)
 
 ---
 
@@ -135,32 +142,43 @@ streamlit run streamlit.py
 
 ## 📊 Example Workflow
 
-1. Upload a PDF using Streamlit.
-2. Backend extracts and chunks the text.
-3. Embeddings are generated and stored in Neo4j.
-4. User queries a question.
-5. The system retrieves relevant chunks, generates a contextual answer, display the page, page Number and   highlite the chunks in UI.
+1. Upload a PDF using Streamlit.  
+2. Backend extracts and chunks the text.  
+3. Embeddings are generated and stored in Neo4j.  
+4. User queries a question.  
+5. The system retrieves relevant chunks, generates a contextual answer, displays the page number, and highlights the chunks in the UI.  
 
 ---
 
 ## 🧪 Logging & Observability
-All services use Python’s logging module with tagged namespaces (e.g., `[services.querying]`, `[router.pdf_upload]`).
+All services use Python’s logging module with tagged namespaces (e.g., `[services.querying]`, `[router.pdf_upload]`).  
 Langfuse is integrated for tracking prompt and response metrics.
 
 ---
 
 ## 🧱 Future Enhancements
-- Add hybrid search (semantic + keyword)
-- Integrate multiple Ollama models for comparison
-- Introduce user authentication and query history
-- Deploy on Docker and Streamlit Cloud
+- Add hybrid search (semantic + keyword)  
+- Integrate multiple Ollama models for comparison  
+- Introduce user authentication and query history  
+- Deploy on Docker and Streamlit Cloud  
 
 ---
 
-## 👨‍💻 Author
-**Siva Kumar**  
-Generative AI RAG System Developer  
-📅 Last updated: October 2025
+## 👨‍💻 Author  
+
+<table>
+  <tr>
+    <td>
+      <strong>Siva Kumar</strong><br>
+      <em>Generative AI RAG System Developer</em><br><br>
+      <a href="https://x.com/itsPSK95" target="_blank">
+        <img src="https://img.shields.io/badge/Twitter-@yourhandle-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white" alt="Twitter Badge">
+      </a>
+      <br><br>
+      📅 <strong>Last updated:</strong> October 2025  
+    </td>
+  </tr>
+</table>
 
 ---
 
