@@ -157,20 +157,26 @@ class Neo4jStorage(BaseStorage):
                 logger.info("starting chunk storage for {len(chunks)} chunks...")     #add
                 for c in chunks:
                     pdf_name= c.get("pdf_name")
+                    page_num= c.get("page_num")
+                    pdf_path= c.get("pdf_path")
                     try:
                         session.run(
                             """
                             MATCH (pdf:PDF {name: $pdf_name})
                             MERGE (chunk:Chunk {pdf_name: $pdf_name, chunk_id: $id})
                             SET chunk.text = $text, 
-                                chunk.embedding = $embedding
+                                chunk.embedding = $embedding,
+                                chunk.page_num = $page_num,
+                                chunk.pdf_path = $pdf_path
                             MERGE (pdf)-[:HAS_CHUNK]->(chunk)
                             """,
                             {
                                 "pdf_name": pdf_name,
                                 "id": c.get("chunk_id"),
                                 "text": c.get("text", ""),
-                                "embedding": c.get('embedding',[])
+                                "embedding": c.get('embedding',[]),
+                                "page_num": page_num,
+                                "pdf_path": pdf_path
                             }
                         )
                         logger.info(f"Stored chunk {c['chunk_id']} for PDF {pdf_name}")

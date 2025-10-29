@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+import tempfile
 
 st.set_page_config(
     page_title="Generative AI RAG System",
@@ -8,7 +9,6 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* Global Styles */
     .stApp {
         background-color: #ffffff;
         color: #1a1a1a;
@@ -27,7 +27,6 @@ st.markdown("""
         font-size: 0.93rem !important;
     }
 
-    /* Input Boxes */
     .stTextInput > div > div > input {
         background-color: #fafafa !important;
         border-radius: 10px !important;
@@ -43,7 +42,6 @@ st.markdown("""
         box-shadow: 0 0 0 1px #bfbfbf !important;
     }
 
-    /* Buttons */
     .stButton button {
         width: 100%;
         background-color: #f5f5f5 !important;
@@ -61,7 +59,6 @@ st.markdown("""
         border-color: #cfcfcf !important;
     }
 
-    /* File Uploader */
     [data-testid="stFileUploader"] section {
         background-color: #f9f9f9 !important;
         border: 1px solid #e5e5e5 !important;
@@ -74,35 +71,10 @@ st.markdown("""
         border-radius: 10px !important;
     }
 
-    [data-testid="stFileUploaderDropzone"] button {
-        background-color: #f5f5f5 !important;
-        color: #111 !important;
-        border: 1px solid #dcdcdc !important;
-        border-radius: 6px !important;
-        padding: 0.4rem 0.8rem !important;
-        font-weight: 500 !important;
-        opacity: 1 !important;
-        transition: all 0.2s ease-in-out;
-    }
-
-    [data-testid="stFileUploaderDropzone"] button:hover {
-        background-color: #ebebeb !important;
-        border-color: #cfcfcf !important;
-        transform: translateY(-1px);
-    }
-
-    [data-testid="stFileUploaderFileName"] {
-        color: #111 !important;
-        font-weight: 500 !important;
-        opacity: 1 !important;
-    }
-
-    /* Hide Streamlit default header */
     header[data-testid="stHeader"] {
         display: none !important;
     }
 
-    /* Chat Styling */
     .chat-container {
         max-height: 500px;
         overflow-y: auto;
@@ -195,6 +167,8 @@ st.caption("Ask follow-up questions and continue the conversation")
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
+if "last_chunks" not in st.session_state:
+    st.session_state.last_chunks = []
 
 st.markdown('<div class="chat-container">', unsafe_allow_html=True)
 for role, msg in st.session_state.chat_history:
@@ -218,6 +192,7 @@ send = col2.button("Send")
 
 if st.button("Clear Chat"):
     st.session_state.chat_history = []
+    st.session_state.last_chunks = []
     st.rerun()
 
 if send and user_message.strip():
@@ -226,15 +201,47 @@ if send and user_message.strip():
         try:
             payload = {"query": user_message, "project_name": project_name}
             res = requests.post(f"{BACKEND_URL}/query", json=payload, timeout=120)
+
             if res.status_code == 200:
-                answer = res.json().get("answer", "No answer returned.")
+                data = res.json()
+                answer = data.get("answer", "No answer returned.")
                 st.session_state.chat_history.append(("bot", answer))
+                st.session_state.last_chunks = data.get("chunks", [])
             else:
                 st.session_state.chat_history.append(("bot", f"Query failed: {res.status_code}"))
+                st.session_state.last_chunks = []
         except Exception as e:
             st.session_state.chat_history.append(("bot", f"Error: {e}"))
+            st.session_state.last_chunks = []
+
     st.session_state.input_key_counter += 1
     st.rerun()
+
+if st.session_state.last_chunks:
+    st.markdown("<br><hr><br>", unsafe_allow_html=True)
+    st.subheader("🔍 Retrieved Contexts with Highlights")
+
+    for idx, chunk in enumerate(st.session_state.last_chunks):
+        st.markdown(f"**Chunk {idx + 1} — Page {chunk.get('page_num')}**")
+        st.caption(chunk.get("text", "")[:300] + "...")
+
+        payload = {
+            "pdf_path": chunk.get("pdf_path"),
+            "page_num": chunk.get("page_num"),
+            "snippet": chunk.get("text", "")[:100]
+        }
+
+        try:
+            highlight_res = requests.post(f"{BACKEND_URL}/pdf/highlight", json=payload)
+            if highlight_res.status_code == 200:
+                tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+                tmp.write(highlight_res.content)
+                tmp.flush()
+                st.image(tmp.name, caption=f"Page {chunk.get('page_num')} Highlight", use_column_width=True)
+            else:
+                st.warning(f"Could not generate highlight for page {chunk.get('page_num')}.")
+        except Exception as e:
+            st.warning(f"Error generating highlight: {e}")
 
 st.markdown("""
 <div class="footer">

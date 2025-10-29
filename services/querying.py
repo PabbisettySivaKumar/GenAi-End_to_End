@@ -16,7 +16,7 @@ from langfuse import Langfuse, get_client
 from langfuse.langchain import CallbackHandler as LfHandler
 from dotenv import load_dotenv
 from fastapi import HTTPException
-from langchain.schema import Document
+from langchain_core.documents import Document
 from services.storage import Neo4jStorage
 
 #logging configuration
@@ -92,8 +92,14 @@ class RAGPipeline:
                 node_label="Chunk",
                 text_node_property="text",
                 embedding_node_property="embedding",
-                index_name=self.neo4j_index_name
+                index_name=self.neo4j_index_name,
+                #metadata_properties= ["pdf_name", "pdf_num", "pdf_path"]
             )
+            try:
+                self.vector_index.metdata_keys= ["pdf_name", "page_num", "pdf_path"]
+                logger.info("Metadata properties added manually for Neo4j vector.")
+            except Exception:
+                logger.warning("Neo4jVector metadata patch not applied — using default properties.")
             logger.info("Connected to Neo4jVector index successfully.")
         except Exception as e:
             logger.error(f"Neo4jVector initialization failed: {e}")
@@ -153,20 +159,34 @@ class RAGPipeline:
         Generate an answer using context and langfuse prompt.
         """
         context= "\n".join([d.page_content for d in docs]) if docs else ""
+
+        #checking whether content from document or not
+        if context:
+            logger.info(f"---Retireved Context Preview (first 100 characters) ---\n{context[:100]}\n--- End of Preview ---")
+
         prompt= self.get_langfuse_prompt(context, question)
+
+        if isinstance(prompt, dict):
+            if "messages" in prompt:
+                prompt= "\n".join([m["context"] for m in prompt["messages"]])
+            elif "prompt" in prompt:
+                prompt= prompt["prompt"]
+            else:
+                prompt= str(prompt)
 
         try:
             response= self.llm.invoke(prompt)
-            logger.info("Response generated Succesfully.")
+            logger.info("Response generated Successfully.")
             return response
         except Exception as e:
             logger.error(f"LLM Generation failed: {e}")
             raise HTTPException(status_code= 500, detail= str(e))
 
     #end to end query
-    def query(self, question: str, top_k: int= 3)-> str:
+    def query(self, question: str, top_k: int= 3)-> dict:
         """
         Perform full retrival+generation Pipeline for a given user question.
+        Retirves both the final answer and retrieved chunk metadata.
         """
         start_time= time.time()
         logger.info(f"Processing query: {question}")
@@ -175,11 +195,25 @@ class RAGPipeline:
             docs= self.retrival_documents(question, k= top_k)
             if not docs:
                 logger.warning("No relevant Documents Found")
-                return "No Relevant context found in database."
+                return {
+                    "answer": "No Relevant context found in database.",
+                    "chunks": []
+                }
+            retrieved_chunks= []
+            for d in docs:
+                meta= getattr(d, "metadata", {})
+                retrieved_chunks.append({
+                    "text": d.page_content,
+                    "page_num": meta.get("page_num"),
+                    "pdf_path": meta.get("pdf_path")
+                })
             answer= self.generation_from_context(question, docs)
             elapsed= round(time.time()-start_time,2)
             logger.info(f"Query Processed Successfully in {elapsed}s.")
-            return answer
+            return {
+                "answer": answer,
+                "chunks": retrieved_chunks
+                }
         except Exception as e:
             logger.error(f"Query pipeline failed: {e}")
             raise HTTPException(status_code= 500, detail= str(e))
