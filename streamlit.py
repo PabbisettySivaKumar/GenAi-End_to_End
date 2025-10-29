@@ -60,15 +60,39 @@ st.markdown("""
     }
 
     [data-testid="stFileUploader"] section {
-        background-color: #f9f9f9 !important;
-        border: 1px solid #e5e5e5 !important;
+        background-color: #ffffff !important;
+        border: 1px solid #cccccc !important;
         border-radius: 10px !important;
+        color: #111 !important;
     }
 
     [data-testid="stFileUploaderDropzone"] {
-        background-color: #fafafa !important;
-        border: 1px dashed #dcdcdc !important;
+        background-color: #7f7f7f !important;
+        border: 1px dashed #bbbbbb !important;
         border-radius: 10px !important;
+        padding: 1.2rem !important;
+    }
+    
+    [data-testid="stFileUploaderDropzone"] button {
+    background-color: #3b82f6 !important;  /* bright blue button */
+    color: #ffffff !important;             /* white text */
+    border: none !important;
+    border-radius: 6px !important;
+    padding: 0.5rem 1rem !important;
+    font-weight: 500 !important;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    }
+
+    [data-testid="stFileUploaderDropzone"] button:hover {
+        background-color: #2563eb !important;  /* darker blue on hover */
+        transform: translateY(-1px);
+    }
+
+    [data-testid="stFileUploaderFileName"] {
+        color: #111111 !important;             /* dark visible text */
+        font-weight: 500 !important;
+        opacity: 1 !important;
     }
 
     header[data-testid="stHeader"] {
@@ -155,7 +179,7 @@ if st.button("Upload PDFs"):
                     timeout=300
                 )
                 if response.status_code == 200:
-                    st.success("Upload successful! Your knowledge graph is ready.")
+                    st.success("Upload successfull! Your knowledge graph is ready.")
                 else:
                     st.error(f"Upload failed: {response.status_code}")
                     st.json(response.json())
@@ -184,7 +208,7 @@ if "input_key_counter" not in st.session_state:
 dynamic_key = f"user_message_input_{st.session_state.input_key_counter}"
 
 user_message = col1.text_input(
-    "Type your message",
+    "Type your Question",
     key=dynamic_key,
     placeholder="Ask something about your PDFs..."
 )
