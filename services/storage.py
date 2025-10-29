@@ -1,157 +1,259 @@
+import os
+import logging
+from datetime import datetime
+from abc import ABC, abstractmethod
 from neo4j import GraphDatabase
 from pymongo import MongoClient
-import os
 from dotenv import load_dotenv
-from datetime import datetime
 import pytz
 
+#logging configuration
+logger= logging.getLogger(__name__)
+
+#Environment set-up
 load_dotenv()
-
-#neo4j
-uri= os.getenv("NEO4J_URI")
-user= os.getenv("NEO4J_USER")
-password= os.getenv("NEO4J_PASSWORD")
-
-#mongodb
-url= os.getenv("MONGODB_URI")
-db= os.getenv("MONGODB_DB")
-collection= os.getenv("MONGODB_COLLECTION")
-
-#Neo4j Connection
-try:
-    driver= GraphDatabase.driver(uri, auth= (user, password))
-    print("Connection Established to Neo4j")
-except Exception as e:
-    driver= None
-    print(f"Neo4j Connection Error : {e}")
-
-#MongoDB Connection
-try:
-    mongo= MongoClient(url)[db][collection]
-except Exception as e:
-    mongo= None
-    print(f"MongoDB Connection error: {e}")
 
 ist= pytz.timezone("Asia/Kolkata")
 
-#Neo4j Vector Index Initiallization
-def ensure_vector_index():
+#base abstract class
+class BaseStorage(ABC):
+    """
+    Abstract base class defining storage operations for chunk and project data. 
+    """
+    @abstractmethod
+    def ensure_index(self):
+        """Ensure that required indexs or constraint exists."""
+        pass
 
-    if not driver:
-        print("Neo4j Driver is not yet started")
-        return
-    
-    try:
-        with driver.session() as session:
-            session.run(
-            """
-            CREATE VECTOR INDEX vector IF NOT EXISTS
-            FOR (c:Chunk)
-            ON (c.embedding)
-            OPTIONS {
-            indexConfig: {
-                `vector.dimensions`: 768,
-                `vector.similarity_function`: 'cosine'
-            }
-            };
-            """)
-            print("Neo4j vector index ensured.")
-    except Exception as e:
-        print(f"[Neo4j Index Error] {e}")
+    @abstractmethod
+    def store_project(self, project_name: str, pdf_data: list, chunks: list):
+        """
+        Store a project with PDFs and chunks.
+        """
+        pass
 
-def store_project_graph(project_name, pdf_data, chunks):
+    @abstractmethod
+    def close(self):
+        """
+        Close all connections.
+        """
+        pass
 
-    if not driver:
-        print("Neo4j Driver is not yet started")
-        return
+#neo4j
+class Neo4jStorage(BaseStorage):
+    """
+    this class is used for project graph, pdfs, chunks in Neo4j.
+    ensures neo4j index
+    """
+    def __init__(self):
+        self.uri= os.getenv("NEO4J_URI")
+        self.user= os.getenv("NEO4J_USER")
+        self.password= os.getenv("NEO4J_PASSWORD")
+        self.driver= None
+        self._connect()
 
-    try:
-        #vector index creation
-        ensure_vector_index()
+    def _connect(self):
+        """
+        Establishes connection to Neo4j
+        """
+        #Neo4j Connection
+        try:
+            self.driver= GraphDatabase.driver(self.uri, auth= (self.user, self.password))
+            logger.info("Connection Established to Neo4j")
+        except Exception as e:
+            self.driver= None
+            logger.error(f"Neo4j Connection Error : {e}")
 
-        with driver.session() as session:
-            session.run(
-                """
-                MERGE (p: Project {name: $name})
-                ON CREATE SET p.date_created= $date
-                """,
-                {
-                    "name": project_name,
-                    "date": datetime.now(ist).isoformat()
-                }
-            )
-            #PDF Nodes
-
-            for pdf in pdf_data:
-                try:
-                    session.run(
-                        """
-                        MATCH (p: Project {name: $project_name})
-                        MERGE (pdf: PDF {name: $pdf_name})
-                        SET pdf.pages= $pages
-                        MERGE (p)-[:HAS_PDF]->(pdf)
-                        """,
-                        {
-                            "project_name": project_name,
-                            "pdf_name": pdf['name'],
-                            "pages": pdf['pages']
+    #Neo4j Vector Index Initiallization
+    def ensure_index(self):
+        """
+        Checking Neo4j vector index is exists for chunk embedding.
+        create a index if not exists.
+        """
+        if not self.driver:
+            logger.warning("Neo4j Driver is not yet started; skipping index creation.")
+            return
+        
+        try:
+            with self.driver.session() as session:
+                session.run(
+                    """
+                    CREATE VECTOR INDEX vector IF NOT EXISTS
+                    FOR (c:Chunk)
+                    ON (c.embedding)
+                    OPTIONS {
+                        indexConfig: {
+                            `vector.dimensions`: 768,
+                            `vector.similarity_function`: 'cosine'
                         }
-                    )
-                except Exception as e:
-                    print(f"Neo4j Couldn't Store PDF '{pdf['name']}': {e}")
-
-            #chunk nodes        
-            for c in chunks:
-                pdf_name= c.get("pdf_name")
-                try:
-                    session.run(
-                        """
-                        MATCH (pdf:PDF {name: $pdf_name})
-                        MERGE (chunk:Chunk {pdf_name: $pdf_name, chunk_id: $id})
-                        SET chunk.text = $text, 
-                            chunk.embedding = $embedding
-                        MERGE (pdf)-[:HAS_CHUNK]->(chunk)
-                        """,
-                        {
-                            "pdf_name": pdf_name,
-                            "id": c["chunk_id"],
-                            "text": c["text"],
-                            "embedding": c['embedding']
-                        }
-                    )
-                except Exception as e:
-                    print(f"Neo4j Chunk Error, PDF '{pdf_name}' Chunk_ID {c.get('chunk_id')}: {e}")
-
-        print(f"Neo4j Project {project_name}, stored successfully")
+                    };
+                    """
+                )
+                logger.info("Neo4j vector index ensured.")
+        except Exception as e:
+            logger.error(f"[Neo4j Index Error] {e}")
     
-    except Exception as e:
-        print(f"Neo4j Storage Error: {e}")
+    def store_project(self, project_name: str, pdf_data: list, chunks: list):
+        """
+        Stores a project, it's PDFs, and their text chunks in Neo4j.
+        Ensures vector index is present.
+        Arguments:
+            project_name ---> str: The name of the project.
+            pdf_data ---> list[dict]: List of PDF metadata dictionaries (name, pages),
+            chunks ---> list[dict]: List of text chunks dictionaries with embeddings.
+        """
 
+        if not self.driver:
+            logger.warning("Neo4j Driver is not yet initialized; skipping project storage.")
+            return
 
-def store_metadata(metadata):
-    try:      
-        mongo.insert_one(metadata)
-        print(f"MongoDB Metadata stored for PDF: {metadata.get('pdf_name')}")
-    except Exception as e:
-        print(f"MongoDB Couldn't store metadata: {e}")
+        try:
+            #vector index creation
+            self.ensure_index()
 
+            with self.driver.session() as session:
+                #project node
+                session.run(
+                    """
+                    MERGE (p: Project {name: $name})
+                    ON CREATE SET p.date_created= $date
+                    """,
+                    {
+                        "name": project_name,
+                        "date": datetime.now(ist).isoformat()
+                    }
+                )
+                logger.info(f"Created or merged Project_node: {project_name}")
+                
+                #PDF Nodes
+                for pdf in pdf_data:
 
-def close_connection():
-    try:
-        if driver:
-            driver.close()
-            print("Neo4j Connection Closed")
-    except Exception as e:
-        print(f"Neo4j Connection Close error: {e}")
+                    ##did changes here
+                    pdf_name= pdf.get("name") or pdf.get("pdf_name")
+                    pages= pdf.get("pages", 0)
+
+                    if not pdf_name:
+                        logger.warning(f"skipping PDF with missing name field: {pdf}")
+
+                    try:
+                        session.run(
+                            """
+                            MATCH (p: Project {name: $project_name})
+                            MERGE (pdf: PDF {name: $pdf_name})
+                            SET pdf.pages= $pages
+                            MERGE (p)-[:HAS_PDF]->(pdf)
+                            """,
+                            {
+                                "project_name": project_name,
+                                "pdf_name": pdf_name, #did here also
+                                "pages": pages #here also
+                            }
+                        )
+                        logger.info(f"Stored PDF node: {pdf_name}")
+                    except Exception as e:
+                        logger.error(f"Neo4j Couldn't Store PDF '{pdf_name}': {e}")
+
+                #chunk nodes
+                logger.info("starting chunk storage for {len(chunks)} chunks...")     #add
+                for c in chunks:
+                    pdf_name= c.get("pdf_name")
+                    try:
+                        session.run(
+                            """
+                            MATCH (pdf:PDF {name: $pdf_name})
+                            MERGE (chunk:Chunk {pdf_name: $pdf_name, chunk_id: $id})
+                            SET chunk.text = $text, 
+                                chunk.embedding = $embedding
+                            MERGE (pdf)-[:HAS_CHUNK]->(chunk)
+                            """,
+                            {
+                                "pdf_name": pdf_name,
+                                "id": c.get("chunk_id"),
+                                "text": c.get("text", ""),
+                                "embedding": c.get('embedding',[])
+                            }
+                        )
+                        logger.info(f"Stored chunk {c['chunk_id']} for PDF {pdf_name}")
+                    except Exception as e:
+                        logger.error(f"Neo4j Chunk Error, PDF '{pdf_name}' Chunk_ID {c.get('chunk_id')}: {e}")
+
+            logger.info(f"Neo4j Project {project_name}, stored successfully")
+        
+        except Exception as e:
+            logger.error(f"Neo4j Storage Error: {e}")
     
-    try:  
-        mongo.database.client.close()
-        print(f"MongDB Connection Closed")
-    except Exception as e:
-        print(f"MongoDB Connection Close Error: {e}")
+    #neo4j connection close
+    def close(self):
+        """
+        Close active Neo4j and MongoDB connections.
+        """
+        try:
+            if self.driver:
+                self.driver.close()
+                logger.info("Neo4j Connection Closed")
+        except Exception as e:
+            logger.error(f"Neo4j Connection Close error: {e}")
 
-#Auto vector Index
-try:
-    ensure_vector_index()
-except Exception as e:
-    print(f"skipped vextor index creation: {e}")
+
+#mongodb metadata storage
+class MongoMetadata:
+    """
+    sotres metadata in mongodb for pdf and project info.
+    """
+
+    def __init__(self):
+
+        #mongodb credentials
+        self.url= os.getenv("MONGODB_URI")
+        self.db= os.getenv("MONGODB_DB")
+        self.collection_name= os.getenv("MONGODB_COLLECTION")
+        self.client= None
+        self.collection= None
+        self._connect()
+
+    def _connect(self):
+        """
+        Establish a MongDB client Connection.
+        """
+        #MongoDB Connection
+        try:
+            if not self.url:
+                raise ValueError("Missing MongoDB URI in .env file.")
+            client= MongoClient(self.url)
+            self.client= client
+
+            if self.db is None or self.collection_name is None:
+                raise ValueError("Missing MongoDB or MongoDB Collection in .env file.")
+            self.collection= client[self.db][self.collection_name]
+            logger.info("Connection Established to MongoDB")
+        except Exception as e:
+            logger.error(f"MongoDB Connection error: {e}")
+            self.client= None
+            self.collection= None
+
+    #store metadata in MongoDB
+    def store_metadata(self,metadata: dict):
+        """
+        Stores PDF metadata into MongoDB.
+
+        Arguments:
+            meatadata---> dict: Meatadata dictionary containing project and PDF Info.
+        """
+        if self.collection is None:
+            logger.warning("MongDB not initialised; skipping metadata storage.")
+            return
+
+        try:
+            self.collection.insert_one(metadata)
+            logger.info(f"MongoDB Metadata stored for PDF: {metadata.get('pdf_name')}")
+        except Exception as e:
+            logger.error(f"MongoDB Couldn't store metadata: {e}")
+
+    def close(self):
+        #close connection
+        try:
+            if self.client is not None:
+                self.client.close()
+                logger.info(f"MongDB Connection Closed")
+        except Exception as e:
+            logger.error(f"MongoDB Connection Close Error: {e}")
