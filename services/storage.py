@@ -1,3 +1,43 @@
+"""
+services/storage.py
+
+Storage layer for the Generative AI RAG System.
+
+This module defines the storage architecture for managing **project data**, **PDF metadata**, 
+and **chunk embeddings** across two databases:
+
+1. Neo4j Graph Database — stores project, PDF, and chunk relationships as nodes and edges.
+   - Each project is represented as a `Project` node.
+   - Each PDF is a `PDF` node connected to its project via `HAS_PDF`.
+   - Each text chunk (with embeddings) is a `Chunk` node linked to its PDF via `HAS_CHUNK`.
+   - A vector index on `Chunk.embedding` enables efficient semantic search.
+
+2. MongoDB — stores metadata documents for quick lookup and retrieval of project and PDF information.
+   - Useful for storing high-level metadata, logs, or analytics separate from the Neo4j graph.
+
+The module provides two main classes:
+
+- BaseStorage (abstract)**  
+  Defines the standard storage interface (`ensure_index`, `store_project`, `close`) 
+  that all storage backends should implement.
+
+- Neo4jStorage (BaseStorage)**  
+  Implements storage for graph-based project structures, PDF nodes, and chunk embeddings.
+  Handles Neo4j connection setup, index creation, and node/relationship persistence.
+
+- MongoMetadata**  
+  Provides a lightweight MongoDB client for storing and retrieving project or PDF metadata.
+
+Key Functionalities:
+
+- Connects to Neo4j and MongoDB using environment variables (`.env` file).
+- Ensures Neo4j vector index for embeddings (cosine similarity, 768 dimensions).
+- Persists project hierarchy and chunk embeddings to Neo4j.
+- Persists metadata to MongoDB.
+- Includes robust logging for connection management, insertion, and error handling.
+- Supports IST (Asia/Kolkata) timezone for timestamps.
+"""
+
 import os
 import logging
 from datetime import datetime
@@ -128,7 +168,6 @@ class Neo4jStorage(BaseStorage):
                 #PDF Nodes
                 for pdf in pdf_data:
 
-                    ##did changes here
                     pdf_name= pdf.get("name") or pdf.get("pdf_name")
                     pages= pdf.get("pages", 0)
 
@@ -154,7 +193,7 @@ class Neo4jStorage(BaseStorage):
                         logger.error(f"Neo4j Couldn't Store PDF '{pdf_name}': {e}")
 
                 #chunk nodes
-                logger.info("starting chunk storage for {len(chunks)} chunks...")     #add
+                logger.info(f"starting chunk storage for {len(chunks)} chunks...")
                 for c in chunks:
                     pdf_name= c.get("pdf_name")
                     page_num= c.get("page_num")

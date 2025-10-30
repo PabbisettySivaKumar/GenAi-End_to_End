@@ -67,9 +67,9 @@ class DocumentChunker:
                 for i, chunk_text in enumerate(page_chunks):
                     chunks.append({
                         "chunk_id": f"{page_number}_{i}",
-                            "page_num": page_number, #did changes
+                            "page_num": page_number, 
                             "text": chunk_text,
-                            "pdf_path": pdf_path #added this line
+                            "pdf_path": pdf_path 
                     })
                 
                 logger.info(
