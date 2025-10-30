@@ -17,15 +17,15 @@ and **chunk embeddings** across two databases:
 
 The module provides two main classes:
 
-- BaseStorage (abstract)**  
+- BaseStorage (abstract)
   Defines the standard storage interface (`ensure_index`, `store_project`, `close`) 
   that all storage backends should implement.
 
-- Neo4jStorage (BaseStorage)**  
+- Neo4jStorage (BaseStorage)
   Implements storage for graph-based project structures, PDF nodes, and chunk embeddings.
   Handles Neo4j connection setup, index creation, and node/relationship persistence.
 
-- MongoMetadata**  
+- MongoMetadata
   Provides a lightweight MongoDB client for storing and retrieving project or PDF metadata.
 
 Key Functionalities:
