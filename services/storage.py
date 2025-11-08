@@ -4,7 +4,7 @@ services/storage.py
 Storage layer for the Generative AI RAG System.
 
 This module defines the storage architecture for managing **project data**, **PDF metadata**, 
-and **chunk embeddings** across two databases:
+and chunk embeddings across two databases:
 
 1. Neo4j Graph Database — stores project, PDF, and chunk relationships as nodes and edges.
    - Each project is represented as a `Project` node.

@@ -36,7 +36,7 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 class PDFUploader:
     """
     A class that encapsulates the end-to-end PDF upload and processing flow:
-    1. Save uploaded PDFs temporarily.
+    1. Save uploaded PDFs permanently.
     2. Extract text chunks using DocumentChunker.
     3. Generate embeddings using OllamaEmbedder.
     4. Store metadata + graph structure in Neo4j & MongoDB.

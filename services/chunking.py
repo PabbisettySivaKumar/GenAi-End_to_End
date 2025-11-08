@@ -19,7 +19,7 @@ class DocumentChunker:
     which is good for embedding and retrival
     """
 
-    def __init__(self, chunk_size: int= 3000, chunk_overlap: int= 1000):
+    def __init__(self, chunk_size: int= 1000, chunk_overlap: int= 100):
         """
         Initializing DocumentChunker.
 
